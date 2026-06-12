@@ -91,7 +91,7 @@ def predict(vehicle: VehicleInput):
     
     # Calculate transaction-specific pricing
     transaction_type = payload.get("transaction_type", "selling")
-    transaction_data = calculate_transaction_price(price, damage_cost, transaction_type)
+    transaction_data = calculate_transaction_price(price, damage_cost, transaction_type, payload)
     
     record_prediction(db_connection, payload, price)
 

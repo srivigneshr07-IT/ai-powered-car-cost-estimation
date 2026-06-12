@@ -123,7 +123,63 @@ def compute_suggested_price(predicted_price: float, damage_cost: float) -> float
     return round(max(suggested, floor_price), 2)
 
 
-def calculate_transaction_price(predicted_price: float, damage_cost: float, transaction_type: str) -> dict:
+def calculate_dynamic_profit_margin(predicted_price: float, payload: dict) -> float:
+    """
+    Calculate dynamic profit margin based on vehicle characteristics.
+    
+    Base margin: 10%
+    Adjustments based on:
+    - Premium brand (+5%)
+    - Car age (+0.5% per year after 5 years)
+    - Price range (luxury cars +3-5%)
+    - Damage condition (+2-5%)
+    
+    Returns margin as decimal (e.g., 0.12 for 12%)
+    """
+    base_margin = 0.10  # 10% base
+    
+    # 1. Premium brand adjustment
+    if payload.get("premium_brand", 0) == 1:
+        base_margin += 0.05  # +5% for luxury brands
+    
+    # 2. Price range adjustment
+    if predicted_price > 2000000:  # > 20 lakhs
+        base_margin += 0.05  # +5% for expensive cars
+    elif predicted_price > 1000000:  # > 10 lakhs
+        base_margin += 0.03  # +3% for mid-range
+    elif predicted_price < 300000:  # < 3 lakhs
+        base_margin -= 0.02  # -2% for budget cars (fast turnover)
+    
+    # 3. Car age adjustment (older = more risk)
+    car_age = payload.get("car_age", 0)
+    if car_age > 7:
+        base_margin += 0.02  # +2% for old cars
+    elif car_age > 10:
+        base_margin += 0.05  # +5% for very old cars
+    elif car_age < 3:
+        base_margin -= 0.02  # -2% for newer cars
+    
+    # 4. Damage adjustment
+    damage_desc = payload.get("damage_description", "")
+    if damage_desc:
+        damage_lower = damage_desc.lower()
+        if any(word in damage_lower for word in ["major", "accident", "engine", "transmission"]):
+            base_margin += 0.05  # +5% for major damage
+        elif any(word in damage_lower for word in ["broken", "collision", "crack"]):
+            base_margin += 0.03  # +3% for medium damage
+        elif any(word in damage_lower for word in ["scratch", "dent", "minor"]):
+            base_margin += 0.01  # +1% for minor damage
+    
+    # 5. Mileage adjustment (high km = more risk)
+    km = payload.get("km", 0)
+    if km > 100000:  # > 1 lakh km
+        base_margin += 0.02  # +2% for high mileage
+    
+    # Cap the margin between 5% and 25%
+    return min(max(base_margin, 0.05), 0.25)
+
+
+def calculate_transaction_price(predicted_price: float, damage_cost: float, transaction_type: str, payload: dict = None) -> dict:
     """
     Calculate transaction-specific pricing based on transaction type.
     
@@ -154,13 +210,18 @@ def calculate_transaction_price(predicted_price: float, damage_cost: float, tran
         }
     
     elif transaction_type == "buying_resale":
-        # Buying for resale: calculate max buy price for 10% profit margin
-        max_buy_price = market_value / 1.10
+        # Buying for resale: calculate max buy price with DYNAMIC profit margin
+        if payload is None:
+            profit_margin = 0.10  # fallback to 10%
+        else:
+            profit_margin = calculate_dynamic_profit_margin(predicted_price, payload)
+        
+        max_buy_price = market_value / (1 + profit_margin)
         profit_amount = market_value - max_buy_price
         return {
             "transaction_price": round(max_buy_price, 2),
             "profit_margin": round(profit_amount, 2),
-            "price_range_min": round(max_buy_price * 0.95, 2),  # 5% negotiation room
+            "price_range_min": round(max_buy_price * 0.95, 2),
             "price_range_max": round(max_buy_price, 2)
         }
     
