@@ -626,6 +626,90 @@ const showStatus = (message, isError = false) => {
     statusOutput.style.color = isError ? '#d9534f' : '#2a7f62';
 };
 
+const generatePricingSummary = (result, transactionType, payload) => {
+    const summaryDiv = document.getElementById('pricingSummary');
+    const summaryContent = document.getElementById('summaryContent');
+    
+    const marketValue = result.predicted_price - result.damage_cost;
+    let summaryHTML = '';
+    
+    if (transactionType === 'selling') {
+        // Selling mode - no margin breakdown
+        summaryHTML = `
+            <strong>Selling Mode</strong>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Base Market Value: ₹${result.predicted_price.toLocaleString('en-IN')}</li>
+                ${result.damage_cost > 0 ? `<li>Damage Deduction: -₹${result.damage_cost.toLocaleString('en-IN')}</li>` : ''}
+                <li>Final Selling Price: ₹${result.transaction_price.toLocaleString('en-IN')}</li>
+            </ul>
+            <p style="margin: 5px 0; color: #666; font-size: 13px;">💡 This is the fair market value you can expect when selling your car.</p>
+        `;
+    } else if (transactionType === 'buying_resale') {
+        // Buying for resale - show margin breakdown
+        const marginPercent = (result.profit_margin / marketValue * 100).toFixed(1);
+        
+        // Calculate margin factors
+        const factors = [];
+        if (payload.premium_brand === 1) factors.push('Premium brand (+5%)');
+        if (result.predicted_price > 2000000) factors.push('High price range (+5%)');
+        else if (result.predicted_price > 1000000) factors.push('Mid-premium range (+3%)');
+        else if (result.predicted_price < 300000) factors.push('Budget range (-2%)');
+        
+        if (payload.car_age > 10) factors.push('Very old car (+5%)');
+        else if (payload.car_age > 7) factors.push('Old car (+2%)');
+        else if (payload.car_age < 3) factors.push('Nearly new (-2%)');
+        
+        if (payload.km > 100000) factors.push('High mileage (+2%)');
+        
+        if (payload.damage_description) {
+            const dmg = payload.damage_description.toLowerCase();
+            if (dmg.includes('major') || dmg.includes('accident')) factors.push('Major damage (+5%)');
+            else if (dmg.includes('broken') || dmg.includes('collision')) factors.push('Medium damage (+3%)');
+            else factors.push('Minor damage (+1%)');
+        }
+        
+        const owner = payload.owner_type.toLowerCase();
+        if (owner.includes('second')) factors.push('Second owner (+1%)');
+        else if (owner.includes('third')) factors.push('Third owner (+2%)');
+        else if (owner.includes('fourth')) factors.push('Fourth+ owner (+3%)');
+        
+        summaryHTML = `
+            <strong>Buying for Resale - Margin Breakdown</strong>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Market Value: ₹${marketValue.toLocaleString('en-IN')}</li>
+                <li>Profit Margin: ${marginPercent}% (₹${result.profit_margin.toLocaleString('en-IN')})</li>
+                <li>Max Buy Price: ₹${result.transaction_price.toLocaleString('en-IN')}</li>
+            </ul>
+            <strong style="font-size: 13px;">Margin Factors Applied:</strong>
+            <ul style="margin: 5px 0; padding-left: 20px; font-size: 13px;">
+                ${factors.length > 0 ? factors.map(f => `<li>${f}</li>`).join('') : '<li>Base margin: 10%</li>'}
+            </ul>
+            <p style="margin: 5px 0; color: #666; font-size: 13px;">💡 Higher risk factors = Higher margin to protect your investment.</p>
+        `;
+    } else if (transactionType === 'buying_personal') {
+        // Buying personal - show fair range
+        summaryHTML = `
+            <strong>Buying for Personal Use</strong>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Market Value: ₹${marketValue.toLocaleString('en-IN')}</li>
+                <li>Fair Buy Range: ₹${result.price_range_min.toLocaleString('en-IN')} - ₹${result.price_range_max.toLocaleString('en-IN')}</li>
+                <li>Target Price: ₹${result.transaction_price.toLocaleString('en-IN')} (5% below market)</li>
+            </ul>
+            <strong style="font-size: 13px;">Negotiation Tips:</strong>
+            <ul style="margin: 5px 0; padding-left: 20px; font-size: 13px;">
+                <li>Start offer at lower end of range</li>
+                <li>Don't pay more than upper limit</li>
+                <li>Factor in repair costs if damaged</li>
+            </ul>
+            <p style="margin: 5px 0; color: #666; font-size: 13px;">💡 This range gives you negotiation power while staying fair.</p>
+        `;
+    }
+    
+    summaryContent.innerHTML = summaryHTML;
+    summaryDiv.style.display = 'block';
+};
+
+
 const submitForm = async (event) => {
     event.preventDefault();
 
@@ -765,6 +849,9 @@ const submitForm = async (event) => {
             'buying_personal': 'Prediction Successful — fair market value calculated.'
         };
         showStatus(statusMessages[transaction_type] || 'Prediction Successful');
+        
+        // Generate pricing summary
+        generatePricingSummary(result, transaction_type, payload);
         
         await refreshHistory();
     } catch (error) {

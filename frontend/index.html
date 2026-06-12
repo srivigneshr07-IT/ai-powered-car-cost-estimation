@@ -118,8 +118,9 @@
                             <input type="number" id="car_age" placeholder="5" required>
                         </div>
                         <div class="form-group">
-                            <label>Transaction Mode</label>
-                            <select id="transaction_type">
+                            <label>Transaction Mode <span style="color: red;">*</span></label>
+                            <select id="transaction_type" required>
+                                <option value="">Select Transaction Mode</option>
                                 <option value="selling">🔴 Selling (I want to sell)</option>
                                 <option value="buying_resale">🟢 Buying for Resale (10% profit)</option>
                                 <option value="buying_personal">🔵 Buying for Personal Use</option>
@@ -197,6 +198,13 @@
                         </div>
                     </div>
                     <div id="status" class="status-text">Waiting for prediction...</div>
+                    
+                    <!-- Pricing Summary Section -->
+                    <div id="pricingSummary" class="pricing-summary" style="display:none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #2a7f62;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #2a7f62;">💡 Pricing Breakdown</h3>
+                        <div id="summaryContent" style="font-size: 14px; line-height: 1.8;"></div>
+                    </div>
+                    
                     <div class="card-actions">
                         <button id="printReportBtn" class="text-button">Download Report</button>
                     </div>
