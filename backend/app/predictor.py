@@ -165,11 +165,12 @@ def calculate_transaction_price(predicted_price: float, damage_cost: float, tran
         }
     
     elif transaction_type == "buying_personal":
-        # Buying for personal use: show fair market value range
-        fair_min = market_value * 0.92  # 8% below market
-        fair_max = market_value * 1.03  # 3% above market
+        # Buying for personal use: show fair buy price (lower than market)
+        fair_buy_price = market_value * 0.95  # 5% below market value
+        fair_min = market_value * 0.90  # 10% below market
+        fair_max = market_value * 0.98  # 2% below market
         return {
-            "transaction_price": round(market_value, 2),
+            "transaction_price": round(fair_buy_price, 2),
             "profit_margin": None,
             "price_range_min": round(fair_min, 2),
             "price_range_max": round(fair_max, 2)
