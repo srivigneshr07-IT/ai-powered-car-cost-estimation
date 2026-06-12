@@ -526,6 +526,13 @@ const updateHistoryMetrics = (history) => {
     document.getElementById('historyRecentCity').textContent = latestCity || '--';
 };
 
+let showFullHistory = false;
+
+const toggleFullHistory = () => {
+    showFullHistory = !showFullHistory;
+    renderHistory();
+};
+
 const renderHistory = async () => {
     historyCache = await loadHistory();
     const filteredHistory = getFilteredHistory(historyCache);
@@ -538,10 +545,26 @@ const renderHistory = async () => {
         empty.className = 'history-empty';
         empty.textContent = 'No matching history records. Try another search term.';
         historyList.appendChild(empty);
+        document.getElementById('viewAllHistoryBtn').style.display = 'none';
         return;
     }
 
-    filteredHistory.forEach((entry) => {
+    // Show only last 2 by default, or all if toggled
+    const displayLimit = showFullHistory ? filteredHistory.length : 2;
+    const displayHistory = filteredHistory.slice(0, displayLimit);
+    
+    // Show/hide "View All" button
+    const viewAllBtn = document.getElementById('viewAllHistoryBtn');
+    if (filteredHistory.length > 2) {
+        viewAllBtn.style.display = 'block';
+        viewAllBtn.querySelector('button').textContent = showFullHistory 
+            ? '📋 Show Less' 
+            : `📋 View All History (${filteredHistory.length} records)`;
+    } else {
+        viewAllBtn.style.display = 'none';
+    }
+
+    displayHistory.forEach((entry) => {
         const item = document.createElement('div');
         item.className = 'history-item';
 
