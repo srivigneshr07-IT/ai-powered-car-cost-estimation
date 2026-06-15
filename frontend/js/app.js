@@ -353,6 +353,7 @@ const renderVisionResult = (analysis) => {
         <div class="vision-result-summary">
             ${lines.length ? lines.map((line) => `<p>${line}</p>`).join('') : '<p>No visual data could be extracted.</p>'}
             ${analysis.detected_brand ? '<button id="autofillBtn" type="button" class="primary-button" style="margin-top: 15px;">Auto-fill Form</button>' : ''}
+            <div id="autofillMessage" style="margin-top: 10px; padding: 10px; border-radius: 8px; display: none;"></div>
         </div>
     `;
     
@@ -361,13 +362,32 @@ const renderVisionResult = (analysis) => {
         const autofillBtn = document.getElementById('autofillBtn');
         if (autofillBtn) {
             autofillBtn.addEventListener('click', async () => {
+                const messageDiv = document.getElementById('autofillMessage');
+                messageDiv.style.display = 'none';
                 autofillBtn.disabled = true;
                 autofillBtn.textContent = 'Auto-filling...';
-                await autofillVehicleFromVision(analysis);
-                autofillBtn.textContent = 'Form Auto-filled ✓';
+                
+                const result = await autofillVehicleFromVision(analysis);
+                
+                if (result.success) {
+                    autofillBtn.textContent = 'Form Auto-filled ✓';
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = '#d1fae5';
+                    messageDiv.style.color = '#065f46';
+                    messageDiv.innerHTML = `✅ ${result.message}`;
+                } else {
+                    autofillBtn.textContent = 'Auto-fill Form';
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = '#fee2e2';
+                    messageDiv.style.color = '#991b1b';
+                    messageDiv.innerHTML = `⚠️ ${result.message}`;
+                }
+                
                 setTimeout(() => {
                     autofillBtn.disabled = false;
-                    autofillBtn.textContent = 'Auto-fill Form';
+                    if (result.success) {
+                        autofillBtn.textContent = 'Auto-fill Form';
+                    }
                 }, 2000);
             });
         }
@@ -375,7 +395,7 @@ const renderVisionResult = (analysis) => {
 };
 
 const autofillVehicleFromVision = async (analysis) => {
-    if (!analysis) return;
+    if (!analysis) return { success: false, message: 'No analysis data available.' };
 
     // Smart brand matching
     let matchedBrand = null;
@@ -390,8 +410,10 @@ const autofillVehicleFromVision = async (analysis) => {
     }
 
     if (!matchedBrand) {
-        showStatus(`⚠️ Brand "${analysis.detected_brand}" not in database. Price prediction under development. Please select manually.`, true);
-        return;
+        return { 
+            success: false, 
+            message: `Brand "${analysis.detected_brand}" not in database. Price prediction under development. Please select manually.` 
+        };
     }
 
     brandSelect.value = matchedBrand;
@@ -399,8 +421,10 @@ const autofillVehicleFromVision = async (analysis) => {
     await loadModels(matchedBrand);
     
     if (modelOptions.length === 0) {
-        showStatus(`⚠️ No models for "${matchedBrand}". Price prediction under development.`, true);
-        return;
+        return { 
+            success: false, 
+            message: `No models for "${matchedBrand}". Price prediction under development.` 
+        };
     }
     
     let matchedModel = null;
@@ -411,8 +435,10 @@ const autofillVehicleFromVision = async (analysis) => {
         );
         
         if (!matchedModel) {
-            showStatus(`⚠️ Model "${analysis.detected_model}" not in database. Available: ${modelOptions.join(', ')}. Please select manually.`, true);
-            return;
+            return { 
+                success: false, 
+                message: `Model "${analysis.detected_model}" not in database. Available: ${modelOptions.join(', ')}. Please select manually.` 
+            };
         }
     } else {
         matchedModel = modelOptions[0];
@@ -435,7 +461,10 @@ const autofillVehicleFromVision = async (analysis) => {
         }
     }
     
-    showStatus(`✅ Auto-filled! Brand: ${matchedBrand}, Model: ${matchedModel}. Verify and add remaining details.`);
+    return { 
+        success: true, 
+        message: `Form auto-filled! Brand: ${matchedBrand}, Model: ${matchedModel}. Please verify and add remaining details.` 
+    };
 };
 
 const analyzeVehicleImages = async () => {
