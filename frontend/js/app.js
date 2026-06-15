@@ -352,8 +352,26 @@ const renderVisionResult = (analysis) => {
     visionResultContainer.innerHTML = `
         <div class="vision-result-summary">
             ${lines.length ? lines.map((line) => `<p>${line}</p>`).join('') : '<p>No visual data could be extracted.</p>'}
+            ${analysis.detected_brand ? '<button id="autofillBtn" type="button" class="primary-button" style="margin-top: 15px;">Auto-fill Form</button>' : ''}
         </div>
     `;
+    
+    // Add click handler for auto-fill button
+    if (analysis.detected_brand) {
+        const autofillBtn = document.getElementById('autofillBtn');
+        if (autofillBtn) {
+            autofillBtn.addEventListener('click', async () => {
+                autofillBtn.disabled = true;
+                autofillBtn.textContent = 'Auto-filling...';
+                await autofillVehicleFromVision(analysis);
+                autofillBtn.textContent = 'Form Auto-filled ✓';
+                setTimeout(() => {
+                    autofillBtn.disabled = false;
+                    autofillBtn.textContent = 'Auto-fill Form';
+                }, 2000);
+            });
+        }
+    }
 };
 
 const autofillVehicleFromVision = async (analysis) => {
@@ -414,14 +432,13 @@ const analyzeVehicleImages = async () => {
 
         const result = await response.json();
         renderVisionResult(result);
-        await autofillVehicleFromVision(result);
-        showStatus('Vision analysis complete. Review autofilled values before prediction.');
+        showStatus('Vision analysis complete. Click "Auto-fill Form" button to populate the form.');
     } catch (error) {
         console.error('Vision analysis failed:', error);
         showStatus(error.message || 'Vision analysis failed.', true);
     } finally {
         analyzeImagesBtn.disabled = false;
-        analyzeImagesBtn.textContent = 'Analyze Images';
+        analyzeImagesBtn.textContent = 'Analyze Image';
     }
 };
 
