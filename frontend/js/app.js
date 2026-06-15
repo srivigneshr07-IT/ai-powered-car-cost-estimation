@@ -377,70 +377,54 @@ const renderVisionResult = (analysis) => {
 const autofillVehicleFromVision = async (analysis) => {
     if (!analysis) return;
 
-    // Smart brand matching - handle partial matches (e.g., "Maruti" -> "maruti suzuki")
+    // Smart brand matching
     let matchedBrand = null;
     if (analysis.detected_brand) {
         const detectedLower = analysis.detected_brand.toLowerCase();
-        
-        // Try exact match first
         matchedBrand = brandOptions.find(b => b.toLowerCase() === detectedLower);
-        
-        // If no exact match, try partial match
         if (!matchedBrand) {
             matchedBrand = brandOptions.find(b => 
-                b.toLowerCase().includes(detectedLower) || 
-                detectedLower.includes(b.toLowerCase())
+                b.toLowerCase().includes(detectedLower) || detectedLower.includes(b.toLowerCase())
             );
         }
     }
 
     if (!matchedBrand) {
-        // Brand not found in database
-        showStatus(`⚠️ Brand "${analysis.detected_brand}" is not in our database yet. Price prediction for this brand is under development. Please select a brand manually or try another vehicle.`, true);
+        showStatus(`⚠️ Brand "${analysis.detected_brand}" not in database. Price prediction under development. Please select manually.`, true);
         return;
     }
 
-    // Set brand and trigger change event
     brandSelect.value = matchedBrand;
     brandSearchInput.value = matchedBrand;
-    
-    // Load models for this brand
     await loadModels(matchedBrand);
     
     if (modelOptions.length === 0) {
-        showStatus(`⚠️ No models found for brand "${matchedBrand}". Price prediction is under development for this brand.`, true);
+        showStatus(`⚠️ No models for "${matchedBrand}". Price prediction under development.`, true);
         return;
     }
     
-    // Try to match model if detected
     let matchedModel = null;
     if (analysis.detected_model) {
         const detectedModelLower = analysis.detected_model.toLowerCase();
         matchedModel = modelOptions.find(m => 
-            m.toLowerCase().includes(detectedModelLower) || 
-            detectedModelLower.includes(m.toLowerCase())
+            m.toLowerCase().includes(detectedModelLower) || detectedModelLower.includes(m.toLowerCase())
         );
         
-        // If model not found in database, show error and don't auto-fill
         if (!matchedModel) {
-            showStatus(`⚠️ Model "${analysis.detected_model}" for brand "${matchedBrand}" is not in our database yet. Price prediction for this model is under development. Available models: ${modelOptions.join(', ')}. Please select manually.`, true);
+            showStatus(`⚠️ Model "${analysis.detected_model}" not in database. Available: ${modelOptions.join(', ')}. Please select manually.`, true);
             return;
         }
     } else {
-        // No model detected, use first available
         matchedModel = modelOptions[0];
     }
     
-    // Load vehicle details for matched model
     modelSelect.value = matchedModel;
     await loadVehicleDetails(matchedBrand, matchedModel);
 
-    // Body type is already set by loadVehicleDetails, but override if detected
     if (analysis.detected_body_type && bodyInput.value !== analysis.detected_body_type) {
         bodyInput.value = analysis.detected_body_type;
     }
 
-    // Estimate car age from year if detected
     if (analysis.estimated_year && (!carAgeInput.value || Number(carAgeInput.value) <= 0)) {
         const year = Number(analysis.estimated_year);
         if (!Number.isNaN(year)) {
@@ -451,16 +435,7 @@ const autofillVehicleFromVision = async (analysis) => {
         }
     }
     
-    // Success message
-    showStatus(`✅ Form auto-filled successfully! Brand: ${matchedBrand}, Model: ${matchedModel}. Please verify and add remaining details.`);
-};
-        }
-    }
-    
-    // Success message if everything matched
-    if (matchedBrand && matchedModel) {
-        showStatus(`✅ Form auto-filled successfully! Brand: ${matchedBrand}, Model: ${matchedModel}. Please verify and add remaining details.`);
-    }
+    showStatus(`✅ Auto-filled! Brand: ${matchedBrand}, Model: ${matchedModel}. Verify and add remaining details.`);
 };
 
 const analyzeVehicleImages = async () => {
@@ -471,8 +446,8 @@ const analyzeVehicleImages = async () => {
 
     const formData = buildVisionFormData();
     analyzeImagesBtn.disabled = true;
-    analyzeImagesBtn.textContent = 'Analyzing...';
-    showStatus('Performing image analysis...');
+    analyzeImagesBtn.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Analyzing...';
+    showStatus('🔍 Analyzing image with AWS Bedrock Nova Lite...');
 
     try {
         const response = await fetch(`${API_URL}/vision/analyze`, {
