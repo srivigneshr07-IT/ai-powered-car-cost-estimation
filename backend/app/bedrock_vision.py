@@ -144,17 +144,18 @@ def detect_vehicle_damage_with_bedrock(image: Image.Image) -> dict:
     Detect vehicle damage using AWS Bedrock Nova Lite.
     Returns damage assessment and description.
     """
-    client = get_bedrock_client()
-    image_base64 = encode_image_to_base64(image)
-    
-    prompt = """Analyze this vehicle image for any visible damage or defects.
+    try:
+        client = get_bedrock_client()
+        image_base64 = encode_image_to_base64(image)
+        
+        prompt = """Analyze this vehicle image for any visible damage or defects.
 Return ONLY valid JSON in this exact format:
 {
-  "has_damage": true/false,
-  "damage_severity": "none/minor/medium/major",
+  "has_damage": true,
+  "damage_severity": "none",
   "damage_description": "Detailed description of visible damage",
   "damage_areas": ["area1", "area2"],
-  "confidence": 0-100
+  "confidence": 85
 }
 
 Damage severity guidelines:
@@ -165,33 +166,32 @@ Damage severity guidelines:
 
 Be thorough and accurate. If no damage is visible, set has_damage to false and damage_description to "No visible damage detected"."""
 
-    request_body = {
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "image": {
-                            "format": "jpeg",
-                            "source": {
-                                "bytes": image_base64
+        request_body = {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "image": {
+                                "format": "jpeg",
+                                "source": {
+                                    "bytes": image_base64
+                                }
                             }
+                        },
+                        {
+                            "text": prompt
                         }
-                    },
-                    {
-                        "text": prompt
-                    }
-                ]
+                    ]
+                }
+            ],
+            "inferenceConfig": {
+                "max_new_tokens": 500,
+                "temperature": 0.3,
+                "top_p": 0.9
             }
-        ],
-        "inferenceConfig": {
-            "max_new_tokens": 500,
-            "temperature": 0.3,
-            "top_p": 0.9
         }
-    }
-    
-    try:
+        
         response = client.invoke_model(
             modelId=BEDROCK_MODEL_ID,
             body=json.dumps(request_body),
@@ -201,6 +201,8 @@ Be thorough and accurate. If no damage is visible, set has_damage to false and d
         
         response_body = json.loads(response["body"].read())
         output_text = response_body.get("output", {}).get("message", {}).get("content", [{}])[0].get("text", "{}")
+        
+        print(f"Raw Bedrock response: {output_text[:200]}")  # Debug log
         
         # Clean JSON
         output_text = output_text.strip()
@@ -219,12 +221,24 @@ Be thorough and accurate. If no damage is visible, set has_damage to false and d
             "confidence": result.get("confidence", 0),
         }
         
-    except Exception as e:
-        print(f"Damage detection error: {e}")
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
+        print(f"Output text was: {output_text if 'output_text' in locals() else 'N/A'}")
         return {
             "has_damage": False,
             "damage_severity": "none",
-            "damage_description": "Unable to analyze damage",
+            "damage_description": "Error parsing AI response",
+            "damage_areas": [],
+            "confidence": 0,
+        }
+    except Exception as e:
+        print(f"Damage detection error: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "has_damage": False,
+            "damage_severity": "none",
+            "damage_description": f"Unable to analyze damage: {str(e)}",
             "damage_areas": [],
             "confidence": 0,
         }
