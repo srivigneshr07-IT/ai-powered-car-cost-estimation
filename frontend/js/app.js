@@ -502,6 +502,107 @@ const analyzeVehicleImages = async () => {
     }
 };
 
+const analyzeDamage = async () => {
+    const damageImageInput = document.getElementById('damageImage');
+    if (!damageImageInput || !damageImageInput.files || !damageImageInput.files[0]) {
+        showStatus('Please upload a damage image before analysis.', true);
+        return;
+    }
+
+    const analyzeDamageBtn = document.getElementById('analyzeDamageBtn');
+    const formData = new FormData();
+    formData.append('image', damageImageInput.files[0]);
+    
+    analyzeDamageBtn.disabled = true;
+    analyzeDamageBtn.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> Detecting...';
+    showStatus('🔍 Detecting damage with AWS Bedrock Nova Lite...');
+
+    try {
+        const response = await fetch(`${API_URL}/vision/detect-damage`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorPayload = await response.json().catch(() => null);
+            const message = errorPayload?.detail || `Damage detection failed with ${response.status}`;
+            throw new Error(message);
+        }
+
+        const result = await response.json();
+        renderDamageResult(result);
+        showStatus('Damage detection complete. Review and accept to auto-fill damage description.');
+    } catch (error) {
+        console.error('Damage detection failed:', error);
+        showStatus(error.message || 'Damage detection failed.', true);
+    } finally {
+        analyzeDamageBtn.disabled = false;
+        analyzeDamageBtn.textContent = 'Detect Damage';
+    }
+};
+
+const renderDamageResult = (result) => {
+    const damageResultContainer = document.getElementById('damageResult');
+    if (!damageResultContainer) return;
+
+    const severityColors = {
+        none: '#28a745',
+        minor: '#ffc107',
+        medium: '#fd7e14',
+        major: '#dc3545'
+    };
+
+    const severityIcons = {
+        none: '✅',
+        minor: '⚠️',
+        medium: '🔶',
+        major: '🚨'
+    };
+
+    const color = severityColors[result.damage_severity] || '#6c757d';
+    const icon = severityIcons[result.damage_severity] || '🔍';
+
+    damageResultContainer.innerHTML = `
+        <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid ${color};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0; color: ${color};">${icon} Damage Detection Result</h4>
+                <span style="background: ${color}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold;">
+                    ${result.damage_severity.toUpperCase()}
+                </span>
+            </div>
+            <div style="margin: 10px 0;">
+                <strong>Status:</strong> ${result.has_damage ? 'Damage Detected' : 'No Damage Detected'}
+            </div>
+            <div style="margin: 10px 0;">
+                <strong>Description:</strong><br>
+                <span style="color: #495057;">${result.damage_description}</span>
+            </div>
+            ${result.damage_areas && result.damage_areas.length > 0 ? `
+                <div style="margin: 10px 0;">
+                    <strong>Affected Areas:</strong> ${result.damage_areas.join(', ')}
+                </div>
+            ` : ''}
+            <div style="margin: 10px 0;">
+                <strong>Confidence:</strong> ${result.confidence}%
+            </div>
+            <button onclick="acceptDamageDescription('${result.damage_description.replace(/'/g, "\\'")}', '${result.damage_severity}')" 
+                    style="margin-top: 10px; padding: 8px 16px; background: ${color}; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                ✓ Accept & Auto-fill Damage Description
+            </button>
+        </div>
+    `;
+    damageResultContainer.classList.remove('hidden');
+};
+
+window.acceptDamageDescription = (description, severity) => {
+    const damageDescriptionField = document.getElementById('damage_description');
+    if (damageDescriptionField) {
+        damageDescriptionField.value = description;
+        damageDescriptionField.readOnly = false;
+        showStatus(`✅ Damage description auto-filled (${severity}). You can edit if needed.`);
+    }
+};
+
 const printCurrentReport = () => {
     if (!lastPredictionPayload || lastPredictedPrice == null) {
         alert('Run a valuation first to print a report.');
@@ -977,6 +1078,7 @@ clearHistoryBtn.addEventListener('click', clearHistory);
 exportHistoryBtn.addEventListener('click', exportHistoryAsCsv);
 printReportBtn.addEventListener('click', printCurrentReport);
 analyzeImagesBtn.addEventListener('click', analyzeVehicleImages);
+document.getElementById('analyzeDamageBtn').addEventListener('click', analyzeDamage);
 brandSearchInput.addEventListener('input', debounce(async (e) => {
     const q = e.target.value.trim();
     let suggestions = [];

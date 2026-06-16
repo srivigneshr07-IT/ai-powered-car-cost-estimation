@@ -137,3 +137,94 @@ If unsure, provide best estimate. Focus on detecting the brand accurately."""
             "detected_color": None,
             "confidence": 0,
         }
+
+
+def detect_vehicle_damage_with_bedrock(image: Image.Image) -> dict:
+    """
+    Detect vehicle damage using AWS Bedrock Nova Lite.
+    Returns damage assessment and description.
+    """
+    client = get_bedrock_client()
+    image_base64 = encode_image_to_base64(image)
+    
+    prompt = """Analyze this vehicle image for any visible damage or defects.
+Return ONLY valid JSON in this exact format:
+{
+  "has_damage": true/false,
+  "damage_severity": "none/minor/medium/major",
+  "damage_description": "Detailed description of visible damage",
+  "damage_areas": ["area1", "area2"],
+  "confidence": 0-100
+}
+
+Damage severity guidelines:
+- none: No visible damage, car looks pristine
+- minor: Small scratches, paint chips, minor dents
+- medium: Broken parts, cracked glass, visible collision damage, multiple dents
+- major: Severe structural damage, major accident damage, frame damage, flood damage
+
+Be thorough and accurate. If no damage is visible, set has_damage to false and damage_description to "No visible damage detected"."""
+
+    request_body = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "image": {
+                            "format": "jpeg",
+                            "source": {
+                                "bytes": image_base64
+                            }
+                        }
+                    },
+                    {
+                        "text": prompt
+                    }
+                ]
+            }
+        ],
+        "inferenceConfig": {
+            "max_new_tokens": 500,
+            "temperature": 0.3,
+            "top_p": 0.9
+        }
+    }
+    
+    try:
+        response = client.invoke_model(
+            modelId=BEDROCK_MODEL_ID,
+            body=json.dumps(request_body),
+            contentType="application/json",
+            accept="application/json"
+        )
+        
+        response_body = json.loads(response["body"].read())
+        output_text = response_body.get("output", {}).get("message", {}).get("content", [{}])[0].get("text", "{}")
+        
+        # Clean JSON
+        output_text = output_text.strip()
+        if "```json" in output_text:
+            output_text = output_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in output_text:
+            output_text = output_text.split("```")[1].split("```")[0].strip()
+        
+        result = json.loads(output_text)
+        
+        return {
+            "has_damage": result.get("has_damage", False),
+            "damage_severity": result.get("damage_severity", "none"),
+            "damage_description": result.get("damage_description", "No visible damage detected"),
+            "damage_areas": result.get("damage_areas", []),
+            "confidence": result.get("confidence", 0),
+        }
+        
+    except Exception as e:
+        print(f"Damage detection error: {e}")
+        return {
+            "has_damage": False,
+            "damage_severity": "none",
+            "damage_description": "Unable to analyze damage",
+            "damage_areas": [],
+            "confidence": 0,
+        }

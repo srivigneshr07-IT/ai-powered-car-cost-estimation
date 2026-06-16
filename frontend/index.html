@@ -130,8 +130,8 @@
 
                     <div class="field-row">
                         <div class="form-group wide">
-                            <label>Describe Damage (Developing Phase)</label>
-                            <textarea id="damage_description" rows="4" placeholder="e.g. minor scratches on bumper, dented left door (In Developing Phase)"></textarea>
+                            <label>Damage Description (AI-Powered)</label>
+                            <textarea id="damage_description" rows="4" placeholder="AI will auto-fill damage details from image analysis..." readonly></textarea>
                         </div>
                     </div>
 
@@ -151,6 +151,24 @@
                             </div>
                         </div>
                         <div id="visionResult" class="vision-result hidden"></div>
+                    </div>
+
+                    <div class="vision-section" style="margin-top: 20px;">
+                        <div class="vision-header">
+                            <div>
+                                <h3>🔍 AI Damage Detection</h3>
+                                <p>Upload car image to detect damage automatically using AI vision.</p>
+                            </div>
+                            <button id="analyzeDamageBtn" type="button" class="text-button">Detect Damage</button>
+                        </div>
+                        <div class="image-grid">
+                            <div class="image-slot">
+                                <label for="damageImage">Damage Image</label>
+                                <p class="field-note">Upload image showing potential damage areas.</p>
+                                <input type="file" id="damageImage" name="damage" accept="image/*">
+                            </div>
+                        </div>
+                        <div id="damageResult" class="vision-result hidden"></div>
                     </div>
 
                     <button id="submitBtn" type="submit" class="primary-button">Predict Car Price</button>
