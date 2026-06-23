@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Phase 7.1 Test - Market Intelligence Display</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        button { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin: 10px 5px; }
+        button:hover { background: #5568d3; }
+        .result { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Phase 7.1 Test</h1>
+        <p>Testing Market Intelligence Display</p>
+        
+        <button onclick="testWithMarketData()">Test WITH Market Data</button>
+        <button onclick="testWithoutMarketData()">Test WITHOUT Market Data</button>
+        
+        <div class="result">
+            <!-- Market Intelligence Section (copied from main frontend) -->
+            <div id="marketIntelligence" class="market-intelligence" style="display:none; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white;">
+                <h3 style="margin: 0 0 15px 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+                    <span>📊</span> Market Intelligence
+                    <span id="marketConfidenceBadge" style="margin-left: auto; padding: 4px 12px; background: rgba(255,255,255,0.2); border-radius: 12px; font-size: 12px; font-weight: 600;"></span>
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 15px;">
+                    <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+                        <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">ML Prediction</div>
+                        <div id="mlPrediction" style="font-size: 18px; font-weight: 700;">₹ --</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+                        <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">Market Average</div>
+                        <div id="marketAverage" style="font-size: 18px; font-weight: 700;">₹ --</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+                        <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">Market Median</div>
+                        <div id="marketMedian" style="font-size: 18px; font-weight: 700;">₹ --</div>
+                    </div>
+                </div>
+                <div id="marketInsights" style="font-size: 13px; line-height: 1.6; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px;">
+                    <div id="marketSampleSize" style="margin-bottom: 6px;"></div>
+                    <div id="marketAdjustment"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Copy of updateMarketIntelligence function
+        function updateMarketIntelligence(result) {
+            const marketIntelligenceDiv = document.getElementById('marketIntelligence');
+            
+            if (result.market_data_available) {
+                marketIntelligenceDiv.style.display = 'block';
+                
+                const confidenceBadge = document.getElementById('marketConfidenceBadge');
+                const confidenceText = {
+                    'high': '🟢 High Confidence',
+                    'medium': '🟡 Medium Confidence',
+                    'low': '🟠 Low Confidence',
+                    'very_low': '🔴 Very Low Confidence',
+                    'none': '⚪ No Data'
+                };
+                confidenceBadge.textContent = confidenceText[result.market_confidence] || 'Unknown';
+                
+                document.getElementById('mlPrediction').textContent = 
+                    result.ml_prediction ? `₹ ${Number(result.ml_prediction).toLocaleString('en-IN')}` : '₹ --';
+                
+                document.getElementById('marketAverage').textContent = 
+                    result.market_average ? `₹ ${Number(result.market_average).toLocaleString('en-IN')}` : 'N/A';
+                
+                document.getElementById('marketMedian').textContent = 
+                    result.market_median ? `₹ ${Number(result.market_median).toLocaleString('en-IN')}` : 'N/A';
+                
+                const sampleSize = result.market_sample_size || 0;
+                document.getElementById('marketSampleSize').innerHTML = 
+                    `<strong>📈 Based on ${sampleSize} similar car${sampleSize !== 1 ? 's' : ''}</strong> in the market (last 30 days)`;
+                
+                if (result.ml_prediction && result.predicted_price) {
+                    const adjustment = result.predicted_price - result.ml_prediction;
+                    const adjustmentPercent = ((adjustment / result.ml_prediction) * 100).toFixed(2);
+                    const adjustmentText = adjustment > 0 ? 
+                        `<span style="color: #4ade80;">↗ Increased by ₹${Math.abs(adjustment).toLocaleString('en-IN')} (+${adjustmentPercent}%)</span>` :
+                        adjustment < 0 ?
+                        `<span style="color: #f87171;">↘ Decreased by ₹${Math.abs(adjustment).toLocaleString('en-IN')} (${adjustmentPercent}%)</span>` :
+                        `<span style="color: #fbbf24;">→ No adjustment (0%)</span>`;
+                    
+                    document.getElementById('marketAdjustment').innerHTML = 
+                        `<strong>Price Adjustment:</strong> ${adjustmentText} based on current market trends`;
+                }
+            } else {
+                marketIntelligenceDiv.style.display = 'block';
+                document.getElementById('marketConfidenceBadge').textContent = '⚪ No Market Data';
+                document.getElementById('mlPrediction').textContent = 
+                    result.ml_prediction ? `₹ ${Number(result.ml_prediction).toLocaleString('en-IN')}` : '₹ --';
+                document.getElementById('marketAverage').textContent = 'N/A';
+                document.getElementById('marketMedian').textContent = 'N/A';
+                document.getElementById('marketSampleSize').innerHTML = 
+                    '<strong>ℹ️ No similar cars found in our database</strong>';
+                document.getElementById('marketAdjustment').innerHTML = 
+                    'Price is based purely on ML model prediction. Consider checking multiple sources.';
+            }
+        }
+
+        // Test with market data
+        function testWithMarketData() {
+            const mockResult = {
+                market_data_available: true,
+                ml_prediction: 500000,
+                predicted_price: 465775,
+                market_average: 412375,
+                market_median: 333000,
+                market_confidence: 'medium',
+                market_sample_size: 8
+            };
+            updateMarketIntelligence(mockResult);
+        }
+
+        // Test without market data
+        function testWithoutMarketData() {
+            const mockResult = {
+                market_data_available: false,
+                ml_prediction: 500000,
+                predicted_price: 500000,
+                market_confidence: 'none',
+                market_sample_size: 0
+            };
+            updateMarketIntelligence(mockResult);
+        }
+    </script>
+</body>
+</html>

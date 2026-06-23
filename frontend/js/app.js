@@ -1043,6 +1043,9 @@ const submitForm = async (event) => {
         // Update suggested price
         suggestedPriceOutput.textContent = `₹ ${Number(result.transaction_price).toLocaleString('en-IN')}`;
         
+        // Update Market Intelligence Section (NEW)
+        updateMarketIntelligence(result);
+        
         // Update status message
         const statusMessages = {
             'selling': 'Prediction Successful — selling price calculated.',
@@ -1079,6 +1082,71 @@ exportHistoryBtn.addEventListener('click', exportHistoryAsCsv);
 printReportBtn.addEventListener('click', printCurrentReport);
 analyzeImagesBtn.addEventListener('click', analyzeVehicleImages);
 document.getElementById('analyzeDamageBtn').addEventListener('click', analyzeDamage);
+
+// Function to update Market Intelligence display
+function updateMarketIntelligence(result) {
+    const marketIntelligenceDiv = document.getElementById('marketIntelligence');
+    
+    // Check if market data is available
+    if (result.market_data_available) {
+        marketIntelligenceDiv.style.display = 'block';
+        
+        // Update confidence badge
+        const confidenceBadge = document.getElementById('marketConfidenceBadge');
+        const confidenceText = {
+            'high': '🟢 High Confidence',
+            'medium': '🟡 Medium Confidence',
+            'low': '🟠 Low Confidence',
+            'very_low': '🔴 Very Low Confidence',
+            'none': '⚪ No Data'
+        };
+        confidenceBadge.textContent = confidenceText[result.market_confidence] || 'Unknown';
+        
+        // Update ML Prediction
+        document.getElementById('mlPrediction').textContent = 
+            result.ml_prediction ? `₹ ${Number(result.ml_prediction).toLocaleString('en-IN')}` : '₹ --';
+        
+        // Update Market Average
+        document.getElementById('marketAverage').textContent = 
+            result.market_average ? `₹ ${Number(result.market_average).toLocaleString('en-IN')}` : 'N/A';
+        
+        // Update Market Median
+        document.getElementById('marketMedian').textContent = 
+            result.market_median ? `₹ ${Number(result.market_median).toLocaleString('en-IN')}` : 'N/A';
+        
+        // Update sample size
+        const sampleSize = result.market_sample_size || 0;
+        document.getElementById('marketSampleSize').innerHTML = 
+            `<strong>📈 Based on ${sampleSize} similar car${sampleSize !== 1 ? 's' : ''}</strong> in the market (last 30 days)`;
+        
+        // Calculate and show adjustment
+        if (result.ml_prediction && result.predicted_price) {
+            const adjustment = result.predicted_price - result.ml_prediction;
+            const adjustmentPercent = ((adjustment / result.ml_prediction) * 100).toFixed(2);
+            const adjustmentText = adjustment > 0 ? 
+                `<span style="color: #4ade80;">↗ Increased by ₹${Math.abs(adjustment).toLocaleString('en-IN')} (+${adjustmentPercent}%)</span>` :
+                adjustment < 0 ?
+                `<span style="color: #f87171;">↘ Decreased by ₹${Math.abs(adjustment).toLocaleString('en-IN')} (${adjustmentPercent}%)</span>` :
+                `<span style="color: #fbbf24;">→ No adjustment (0%)</span>`;
+            
+            document.getElementById('marketAdjustment').innerHTML = 
+                `<strong>Price Adjustment:</strong> ${adjustmentText} based on current market trends`;
+        }
+    } else {
+        // No market data available
+        marketIntelligenceDiv.style.display = 'block';
+        document.getElementById('marketConfidenceBadge').textContent = '⚪ No Market Data';
+        document.getElementById('mlPrediction').textContent = 
+            result.ml_prediction ? `₹ ${Number(result.ml_prediction).toLocaleString('en-IN')}` : '₹ --';
+        document.getElementById('marketAverage').textContent = 'N/A';
+        document.getElementById('marketMedian').textContent = 'N/A';
+        document.getElementById('marketSampleSize').innerHTML = 
+            '<strong>ℹ️ No similar cars found in our database</strong>';
+        document.getElementById('marketAdjustment').innerHTML = 
+            'Price is based purely on ML model prediction. Consider checking multiple sources.';
+    }
+}
+
 brandSearchInput.addEventListener('input', debounce(async (e) => {
     const q = e.target.value.trim();
     let suggestions = [];

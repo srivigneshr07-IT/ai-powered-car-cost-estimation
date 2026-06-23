@@ -217,6 +217,32 @@
                     </div>
                     <div id="status" class="status-text">Waiting for prediction...</div>
                     
+                    <!-- Market Intelligence Section (NEW) -->
+                    <div id="marketIntelligence" class="market-intelligence" style="display:none; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white;">
+                        <h3 style="margin: 0 0 15px 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+                            <span>📊</span> Market Intelligence
+                            <span id="marketConfidenceBadge" style="margin-left: auto; padding: 4px 12px; background: rgba(255,255,255,0.2); border-radius: 12px; font-size: 12px; font-weight: 600;"></span>
+                        </h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 15px;">
+                            <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+                                <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">ML Prediction</div>
+                                <div id="mlPrediction" style="font-size: 18px; font-weight: 700;">₹ --</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+                                <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">Market Average</div>
+                                <div id="marketAverage" style="font-size: 18px; font-weight: 700;">₹ --</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+                                <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">Market Median</div>
+                                <div id="marketMedian" style="font-size: 18px; font-weight: 700;">₹ --</div>
+                            </div>
+                        </div>
+                        <div id="marketInsights" style="font-size: 13px; line-height: 1.6; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px;">
+                            <div id="marketSampleSize" style="margin-bottom: 6px;"></div>
+                            <div id="marketAdjustment"></div>
+                        </div>
+                    </div>
+                    
                     <!-- Pricing Summary Section -->
                     <div id="pricingSummary" class="pricing-summary" style="display:none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #2a7f62;">
                         <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #2a7f62;">💡 Pricing Breakdown</h3>

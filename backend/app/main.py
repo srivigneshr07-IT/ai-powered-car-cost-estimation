@@ -48,6 +48,10 @@ from backend.app.utils import (
 )
 from backend.app.bedrock_vision import analyze_vehicle_image_with_bedrock, detect_vehicle_damage_with_bedrock
 
+# Import Dynamic Pricing Engine
+from pricing import DynamicPricingEngine
+from market_intelligence import MarketIntelligence
+
 
 app = FastAPI(
 
@@ -79,12 +83,45 @@ app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 # Initialize the SQLite-based vehicle catalog when the app starts.
 db_connection = init_db()
 
+# Initialize Dynamic Pricing Engine
+pricing_engine = DynamicPricingEngine(freshness_days=30)
+market_intelligence = MarketIntelligence(freshness_days=30)
+
 @app.post("/predict", response_model=PredictionResponse)
 def predict(vehicle: VehicleInput):
     payload = vehicle.model_dump()
     payload["myear"] = datetime.utcnow().year - payload["car_age"]
     input_df = pd.DataFrame([payload])
-    price = predict_price(input_df)
+    
+    # Get ML prediction
+    ml_price = predict_price(input_df)
+    
+    # Get dynamic price with market intelligence
+    try:
+        dynamic_result = pricing_engine.get_dynamic_price(
+            ml_prediction=ml_price,
+            brand=payload.get("brand"),
+            model=payload.get("model"),
+            year=payload["myear"],
+            city=payload.get("city", "Chennai"),  # Default to Chennai if not provided
+            fuel=payload.get("fuel_type"),
+            transmission=payload.get("transmission")
+        )
+        
+        # Use dynamic price as final price
+        price = dynamic_result["final_price"]
+        market_data_available = dynamic_result["status"] == "success"
+        market_context = dynamic_result.get("market_context", {})
+        pricing_breakdown = dynamic_result.get("pricing_breakdown", {})
+        
+    except Exception as e:
+        # Fallback to ML-only if dynamic pricing fails
+        print(f"Dynamic pricing failed: {e}. Using ML prediction only.")
+        price = ml_price
+        market_data_available = False
+        market_context = {}
+        pricing_breakdown = {"ml_prediction": ml_price}
+    
     damage_cost = estimate_damage_cost(payload.get("damage_description"))
     confidence_score = calculate_confidence_score(payload)
     suggested_price = compute_suggested_price(price, damage_cost)
@@ -108,6 +145,13 @@ def predict(vehicle: VehicleInput):
         "profit_margin": transaction_data["profit_margin"],
         "price_range_min": transaction_data["price_range_min"],
         "price_range_max": transaction_data["price_range_max"],
+        # Add market intelligence data
+        "market_data_available": market_data_available,
+        "ml_prediction": round(ml_price, 2),
+        "market_average": pricing_breakdown.get("market_average"),
+        "market_median": pricing_breakdown.get("market_median"),
+        "market_confidence": pricing_breakdown.get("confidence", "none"),
+        "market_sample_size": market_context.get("sample_size", 0),
     }
 
 @app.get("/history", response_model=list[PredictionHistoryItem])
@@ -219,3 +263,73 @@ def health_check():
 @app.get("/vehicle/{brand}/{model}")
 def get_vehicle(brand: str, model: str):
     return get_vehicle_details(db_connection, brand, model)
+
+
+# ============================================================================
+# MARKET INTELLIGENCE ENDPOINTS
+# ============================================================================
+
+@app.get("/market/insights")
+def get_market_insights(
+    brand: str,
+    model: str,
+    year: int,
+    city: str,
+    fuel: str | None = None,
+    transmission: str | None = None
+):
+    """Get market insights for a specific car"""
+    try:
+        insights = market_intelligence.get_market_insights(
+            brand=brand,
+            model=model,
+            year=year,
+            city=city,
+            fuel=fuel,
+            transmission=transmission
+        )
+        return insights
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get market insights: {str(e)}")
+
+
+@app.get("/market/city/{city}")
+def get_city_market_overview(city: str):
+    """Get overall market overview for a city"""
+    try:
+        overview = market_intelligence.get_city_market_overview(city)
+        return overview
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get city overview: {str(e)}")
+
+
+@app.get("/market/brand/{brand}")
+def get_brand_insights(brand: str, city: str | None = None):
+    """Get market insights for a specific brand"""
+    try:
+        insights = market_intelligence.get_brand_insights(brand, city)
+        return insights
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get brand insights: {str(e)}")
+
+
+@app.post("/market/compare-cities")
+def compare_cities(
+    ml_prediction: float,
+    brand: str,
+    model: str,
+    year: int,
+    cities: list[str]
+):
+    """Compare prices across multiple cities"""
+    try:
+        comparison = pricing_engine.get_price_comparison(
+            ml_prediction=ml_prediction,
+            brand=brand,
+            model=model,
+            year=year,
+            cities=cities
+        )
+        return comparison
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to compare cities: {str(e)}")

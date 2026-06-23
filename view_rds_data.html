@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDS Database Viewer - Market Prices</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        .stat-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            min-width: 150px;
+        }
+        .stat-box h3 {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+        .stat-box p {
+            margin: 10px 0 0 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .filter-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .fresh {
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗄️ AWS RDS Database Viewer</h1>
+    <p style="text-align: center; color: #666;">
+        Database: <strong>car_valuation</strong> | 
+        Host: <strong>database-1.cgp62acck1rv.us-east-1.rds.amazonaws.com</strong>
+    </p>
+
+    <div class="stats">
+        <div class="stat-box">
+            <h3>Total Listings</h3>
+            <p id="totalListings">-</p>
+        </div>
+        <div class="stat-box">
+            <h3>Fresh (24h)</h3>
+            <p id="freshListings">-</p>
+        </div>
+        <div class="stat-box">
+            <h3>Cities</h3>
+            <p id="totalCities">-</p>
+        </div>
+        <div class="stat-box">
+            <h3>Brands</h3>
+            <p id="totalBrands">-</p>
+        </div>
+    </div>
+
+    <div class="filter-box">
+        <strong>Filters:</strong>
+        <input type="text" id="brandFilter" placeholder="Filter by brand...">
+        <input type="text" id="cityFilter" placeholder="Filter by city...">
+        <select id="sourceFilter">
+            <option value="">All Sources</option>
+            <option value="cars24">Cars24</option>
+            <option value="cardekho">CarDekho</option>
+        </select>
+        <button onclick="applyFilters()">Apply Filters</button>
+        <button onclick="clearFilters()">Clear</button>
+    </div>
+
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Brand</th>
+                <th>Model</th>
+                <th>Year</th>
+                <th>Price</th>
+                <th>KM</th>
+                <th>City</th>
+                <th>Source</th>
+                <th>Last Seen</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <!-- Data will be loaded here -->
+        </tbody>
+    </table>
+
+    <script>
+        let allData = [];
+
+        // Load data from CSV
+        fetch('market_prices_export.csv')
+            .then(response => response.text())
+            .then(csv => {
+                const lines = csv.split('\n');
+                const headers = lines[0].split(',');
+                
+                allData = lines.slice(1).filter(line => line.trim()).map(line => {
+                    const values = line.split(',');
+                    return {
+                        id: values[0],
+                        source: values[1],
+                        brand: values[2],
+                        model: values[3],
+                        variant: values[4],
+                        year: values[5],
+                        fuel: values[6],
+                        transmission: values[7],
+                        bodyType: values[8],
+                        ownerType: values[9],
+                        price: parseInt(values[10]),
+                        kilometers: parseInt(values[11]),
+                        city: values[12],
+                        state: values[13],
+                        lastSeen: values[14],
+                        createdAt: values[15]
+                    };
+                });
+
+                updateStats();
+                displayData(allData);
+            });
+
+        function updateStats() {
+            document.getElementById('totalListings').textContent = allData.length;
+            
+            const now = new Date();
+            const oneDayAgo = new Date(now - 24*60*60*1000);
+            const fresh = allData.filter(d => new Date(d.lastSeen) > oneDayAgo).length;
+            document.getElementById('freshListings').textContent = fresh;
+            
+            const cities = new Set(allData.map(d => d.city));
+            document.getElementById('totalCities').textContent = cities.size;
+            
+            const brands = new Set(allData.map(d => d.brand));
+            document.getElementById('totalBrands').textContent = brands.size;
+        }
+
+        function displayData(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                const now = new Date();
+                const oneDayAgo = new Date(now - 24*60*60*1000);
+                const isFresh = new Date(row.lastSeen) > oneDayAgo;
+                
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td><strong>${row.brand}</strong></td>
+                    <td>${row.model}</td>
+                    <td>${row.year}</td>
+                    <td>₹${row.price.toLocaleString()}</td>
+                    <td>${row.kilometers.toLocaleString()}</td>
+                    <td>${row.city}</td>
+                    <td>${row.source}</td>
+                    <td class="${isFresh ? 'fresh' : ''}">${row.lastSeen.substring(0, 19)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function applyFilters() {
+            const brandFilter = document.getElementById('brandFilter').value.toLowerCase();
+            const cityFilter = document.getElementById('cityFilter').value.toLowerCase();
+            const sourceFilter = document.getElementById('sourceFilter').value;
+
+            const filtered = allData.filter(row => {
+                const matchBrand = !brandFilter || row.brand.toLowerCase().includes(brandFilter);
+                const matchCity = !cityFilter || row.city.toLowerCase().includes(cityFilter);
+                const matchSource = !sourceFilter || row.source === sourceFilter;
+                return matchBrand && matchCity && matchSource;
+            });
+
+            displayData(filtered);
+        }
+
+        function clearFilters() {
+            document.getElementById('brandFilter').value = '';
+            document.getElementById('cityFilter').value = '';
+            document.getElementById('sourceFilter').value = '';
+            displayData(allData);
+        }
+    </script>
+</body>
+</html>

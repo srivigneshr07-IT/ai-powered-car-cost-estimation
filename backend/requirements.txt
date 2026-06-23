@@ -10,3 +10,13 @@ python-multipart
 Pillow
 python-dotenv
 boto3
+google-search-results
+
+# Phase 3: PostgreSQL Database
+psycopg2-binary
+sqlalchemy
+
+# Phase 2: ETL Pipeline (for future)
+beautifulsoup4
+requests
+lxml

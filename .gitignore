@@ -1,26 +1,72 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .ipynb_checkpoints/
+*.egg-info/
 
 # Virtual Environment
 venv/
 .venv/
+env/
+ENV/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+credentials.json
+secrets.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # Logs
 *.log
+scraping_output*.log
+etl_full_run.log
 
 # OS Files
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Zip Files
 *.zip
+*.tar.gz
 
 # Ignore Dataset
 data/
+datasets/
 
 # Temporary Files
 *.tmp
+*.bak
+*.cache
 
-.env
-.env
+# Large Model Files (optional - keep if needed)
+# models/*.pkl
+
+# CSV Exports
+*.csv
+market_prices_export.csv
+
+# Test Files
+test_*.py
+debug_*.py
+
+# Build
+build/
+dist/
+*.egg-info/
