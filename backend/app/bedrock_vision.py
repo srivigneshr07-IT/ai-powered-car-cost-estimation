@@ -101,9 +101,11 @@ If unsure, provide best estimate. Focus on detecting the brand accurately."""
         
         # Parse response
         response_body = json.loads(response["body"].read())
+        print(f"Bedrock response: {response_body}")  # Debug
         
         # Extract text from Nova Lite response
         output_text = response_body.get("output", {}).get("message", {}).get("content", [{}])[0].get("text", "{}")
+        print(f"Extracted text: {output_text}")  # Debug
         
         # Clean and parse JSON
         output_text = output_text.strip()
@@ -129,7 +131,9 @@ If unsure, provide best estimate. Focus on detecting the brand accurately."""
         }
         
     except Exception as e:
-        print(f"Bedrock analysis error: {e}")
+        print(f"Bedrock analysis error: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {
             "detected_brand": None,
             "detected_model": None,
