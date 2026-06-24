@@ -211,28 +211,29 @@ async def analyze_vehicle_images(
         raise HTTPException(status_code=500, detail=f"Image analysis failed: {str(error)}")
 
 
-@app.post("/vision/detect-damage")
-async def detect_damage(image: UploadFile = File(...)):
-    """Detect vehicle damage from uploaded image using AWS Bedrock Nova Lite."""
-    try:
-        contents = await image.read()
-        from PIL import Image
-        import io
-        img = Image.open(io.BytesIO(contents)).convert("RGB")
-        img.thumbnail((1024, 1024))
-        
-        result = detect_vehicle_damage_with_bedrock(img)
-        
-        return {
-            "status": "success",
-            "has_damage": result["has_damage"],
-            "damage_severity": result["damage_severity"],
-            "damage_description": result["damage_description"],
-            "damage_areas": result["damage_areas"],
-            "confidence": result["confidence"]
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Damage detection failed: {str(e)}")
+# DAMAGE DETECTION DISABLED - Feature temporarily disabled
+# @app.post("/vision/detect-damage")
+# async def detect_damage(image: UploadFile = File(...)):
+#     """Detect vehicle damage from uploaded image using AWS Bedrock Nova Lite."""
+#     try:
+#         contents = await image.read()
+#         from PIL import Image
+#         import io
+#         img = Image.open(io.BytesIO(contents)).convert("RGB")
+#         img.thumbnail((1024, 1024))
+#         
+#         result = detect_vehicle_damage_with_bedrock(img)
+#         
+#         return {
+#             "status": "success",
+#             "has_damage": result["has_damage"],
+#             "damage_severity": result["damage_severity"],
+#             "damage_description": result["damage_description"],
+#             "damage_areas": result["damage_areas"],
+#             "confidence": result["confidence"]
+#         }
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Damage detection failed: {str(e)}")
 
 @app.get("/vehicles")
 def get_vehicles(search: str | None = None, limit: int = 50):

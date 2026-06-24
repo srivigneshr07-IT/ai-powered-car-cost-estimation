@@ -1081,7 +1081,8 @@ clearHistoryBtn.addEventListener('click', clearHistory);
 exportHistoryBtn.addEventListener('click', exportHistoryAsCsv);
 printReportBtn.addEventListener('click', printCurrentReport);
 analyzeImagesBtn.addEventListener('click', analyzeVehicleImages);
-document.getElementById('analyzeDamageBtn').addEventListener('click', analyzeDamage);
+// DAMAGE DETECTION DISABLED
+// document.getElementById('analyzeDamageBtn').addEventListener('click', analyzeDamage);
 
 // Function to update Market Intelligence display
 function updateMarketIntelligence(result) {
