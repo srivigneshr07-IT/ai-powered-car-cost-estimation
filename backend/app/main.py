@@ -96,11 +96,16 @@ def predict(vehicle: VehicleInput):
     # Get ML prediction
     ml_price = predict_price(input_df)
     
+    # Normalize brand name for market intelligence (remove "Suzuki" from "Maruti Suzuki")
+    brand_for_market = payload.get("brand", "")
+    if "maruti" in brand_for_market.lower():
+        brand_for_market = "Maruti"
+    
     # Get dynamic price with market intelligence
     try:
         dynamic_result = pricing_engine.get_dynamic_price(
             ml_prediction=ml_price,
-            brand=payload.get("brand"),
+            brand=brand_for_market,
             model=payload.get("model"),
             year=payload["myear"],
             city=payload.get("city", "Chennai"),  # Default to Chennai if not provided
