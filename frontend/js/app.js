@@ -344,14 +344,15 @@ const renderVisionResult = (analysis) => {
     if (analysis.detected_color) lines.push(`<strong>Color:</strong> ${analysis.detected_color}`);
     if (analysis.estimated_year) lines.push(`<strong>Estimated Year:</strong> ${analysis.estimated_year}`);
     if (analysis.vehicle_category) lines.push(`<strong>Category:</strong> ${analysis.vehicle_category}`);
-    if (analysis.images && analysis.images.length) {
-        lines.push(`<strong>Images processed:</strong> ${analysis.images.map((item) => item.slot).join(', ')}`);
-    }
+    // REMOVED: Images processed line that was confusing
+    // if (analysis.images && analysis.images.length) {
+    //     lines.push(`<strong>Images processed:</strong> ${analysis.images.map((item) => item.slot).join(', ')}`);
+    // }
 
     visionResultContainer.classList.remove('hidden');
     visionResultContainer.innerHTML = `
         <div class="vision-result-summary">
-            ${lines.length ? lines.map((line) => `<p>${line}</p>`).join('') : '<p>No visual data could be extracted.</p>'}
+            ${lines.length ? lines.map((line) => `<p>${line}</p>`).join('') : '<p>⚠️ Could not detect vehicle details. Please try another image or fill the form manually.</p>'}
             ${analysis.detected_brand ? '<button id="autofillBtn" type="button" class="primary-button" style="margin-top: 15px;">Auto-fill Form</button>' : ''}
             <div id="autofillMessage" style="margin-top: 10px; padding: 10px; border-radius: 8px; display: none;"></div>
         </div>
