@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDS Database Viewer - 801 Listings</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #667eea; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; }
+        .header { background: #667eea; color: white; padding: 20px; text-align: center; }
+        .stats { display: flex; gap: 20px; padding: 20px; background: #f5f5f5; flex-wrap: wrap; }
+        .stat { flex: 1; min-width: 150px; background: white; padding: 15px; border-radius: 5px; text-align: center; }
+        .stat h3 { color: #667eea; font-size: 1.8em; }
+        .filters { padding: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .filters input, .filters select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: #667eea; color: white; position: sticky; top: 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { cursor: pointer; }
+        tbody tr:hover { background: #f5f5f5; }
+        .price { color: green; font-weight: bold; }
+        .badge { padding: 3px 8px; border-radius: 3px; font-size: 0.85em; }
+        .badge-cars24 { background: #e3f2fd; color: #1976d2; }
+        .badge-cardekho { background: #f3e5f5; color: #7b1fa2; }
+        .pagination { padding: 15px; text-align: center; }
+        .pagination button { padding: 8px 15px; margin: 0 5px; border: 1px solid #667eea; background: white; color: #667eea; cursor: pointer; border-radius: 4px; }
+        .pagination button:hover { background: #667eea; color: white; }
+        .loading { text-align: center; padding: 50px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 RDS Database Viewer</h1>
+            <p>801 Listings from 15 Cities</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat"><h3 id="total">-</h3><p>Total</p></div>
+            <div class="stat"><h3 id="cities">-</h3><p>Cities</p></div>
+            <div class="stat"><h3 id="brands">-</h3><p>Brands</p></div>
+            <div class="stat"><h3 id="avgPrice">-</h3><p>Avg Price</p></div>
+        </div>
+        
+        <div class="filters">
+            <input type="text" id="search" placeholder="Search...">
+            <select id="cityFilter"><option value="">All Cities</option></select>
+            <select id="brandFilter"><option value="">All Brands</option></select>
+            <select id="sourceFilter"><option value="">All Sources</option><option value="cars24">Cars24</option><option value="cardekho">CarDekho</option></select>
+        </div>
+        
+        <div style="overflow-x: auto; padding: 20px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sort('brand')">Brand</th>
+                        <th onclick="sort('model')">Model</th>
+                        <th onclick="sort('year')">Year</th>
+                        <th onclick="sort('city')">City</th>
+                        <th onclick="sort('price')">Price</th>
+                        <th onclick="sort('kilometers')">KM</th>
+                        <th>Fuel</th>
+                        <th>Trans</th>
+                        <th>Source</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody">
+                    <tr><td colspan="9" class="loading">Loading data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="pagination">
+            <button onclick="prevPage()">← Prev</button>
+            <span id="pageInfo">Page 1</span>
+            <button onclick="nextPage()">Next →</button>
+        </div>
+    </div>
+    
+    <script>
+        let data = [], filtered = [], page = 1, perPage = 50;
+        
+        // Load data from database via Python
+        fetch('data.js')
+            .then(r => r.text())
+            .then(text => {
+                eval(text);
+                data = marketData;
+                filtered = data;
+                init();
+            })
+            .catch(err => {
+                document.getElementById('tbody').innerHTML = '<tr><td colspan="9" style="color:red;text-align:center;">Error loading data: ' + err + '</td></tr>';
+            });
+        
+        function init() {
+            updateStats();
+            populateFilters();
+            render();
+            
+            document.getElementById('search').oninput = filter;
+            document.getElementById('cityFilter').onchange = filter;
+            document.getElementById('brandFilter').onchange = filter;
+            document.getElementById('sourceFilter').onchange = filter;
+        }
+        
+        function updateStats() {
+            document.getElementById('total').textContent = data.length;
+            document.getElementById('cities').textContent = new Set(data.map(d => d.city)).size;
+            document.getElementById('brands').textContent = new Set(data.map(d => d.brand)).size;
+            const avg = data.reduce((s, d) => s + d.price, 0) / data.length;
+            document.getElementById('avgPrice').textContent = '₹' + (avg / 100000).toFixed(1) + 'L';
+        }
+        
+        function populateFilters() {
+            const cities = [...new Set(data.map(d => d.city))].sort();
+            const brands = [...new Set(data.map(d => d.brand))].sort();
+            
+            cities.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                document.getElementById('cityFilter').appendChild(opt);
+            });
+            
+            brands.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b;
+                opt.textContent = b;
+                document.getElementById('brandFilter').appendChild(opt);
+            });
+        }
+        
+        function filter() {
+            const search = document.getElementById('search').value.toLowerCase();
+            const city = document.getElementById('cityFilter').value;
+            const brand = document.getElementById('brandFilter').value;
+            const source = document.getElementById('sourceFilter').value;
+            
+            filtered = data;
+            if (search) filtered = filtered.filter(d => d.brand.toLowerCase().includes(search) || d.model.toLowerCase().includes(search) || d.city.toLowerCase().includes(search));
+            if (city) filtered = filtered.filter(d => d.city === city);
+            if (brand) filtered = filtered.filter(d => d.brand === brand);
+            if (source) filtered = filtered.filter(d => d.source === source);
+            
+            page = 1;
+            render();
+        }
+        
+        function sort(col) {
+            filtered.sort((a, b) => {
+                if (col === 'price' || col === 'year' || col === 'kilometers') return b[col] - a[col];
+                return String(a[col]).localeCompare(String(b[col]));
+            });
+            render();
+        }
+        
+        function render() {
+            const start = (page - 1) * perPage;
+            const pageData = filtered.slice(start, start + perPage);
+            const totalPages = Math.ceil(filtered.length / perPage);
+            
+            if (filtered.length === 0) {
+                document.getElementById('tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;">No data found</td></tr>';
+                return;
+            }
+            
+            document.getElementById('tbody').innerHTML = pageData.map(d => `
+                <tr>
+                    <td>${d.brand}</td>
+                    <td>${d.model}</td>
+                    <td>${d.year}</td>
+                    <td>${d.city}</td>
+                    <td class="price">₹${(d.price / 100000).toFixed(2)}L</td>
+                    <td>${d.kilometers.toLocaleString()}</td>
+                    <td>${d.fuel || '-'}</td>
+                    <td>${d.transmission || '-'}</td>
+                    <td><span class="badge badge-${d.source}">${d.source}</span></td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('pageInfo').textContent = `Page ${page} of ${totalPages} (${filtered.length} items)`;
+        }
+        
+        function prevPage() { if (page > 1) { page--; render(); } }
+        function nextPage() { if (page < Math.ceil(filtered.length / perPage)) { page++; render(); } }
+    </script>
+</body>
+</html>
